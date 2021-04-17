@@ -71,7 +71,7 @@ void genData() {
 struct benchmarkArg {
     int start;
     int end;
-    std::function<void(int, int)> func;
+    std::function<void, int, int> func;
 };
 
 void benchmarkHelper(void* arg) {
@@ -88,29 +88,12 @@ void hashHelper(int start, int end) {
 }
 
 void benchmarkConcurrent() {
-    std::vector<std::shared_ptr<pthread_t>> hashThreads(num_threads / 2);
-    std::vector<std::shared_ptr<pthread_t>> doubleThreads(num_threads / 2);
+    pthread_t hashThreads[num_threads / 2];
+    pthread_t doubleThreads[num_threads / 2];
 
     int segmentSize = size / (num_threads / 2);
 
     for (int i = 0; i < num_threads / 2; i++) {
-        hashThreads[i] = std::make_shared<pthread_t>();
-        cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
-        CPU_ZERO(cpuset);
-        CPU_SET(i, cpuset);
-        if (pthread_setaffinity_np(hashThreads[i].get(), sizeof(cpu_set_t), cpuset)) {
-            std::printf("Hash affinity setting on thread %d failed.\n", i);
-            exit(1);
-        }
-        doubleThreads[i] = std::make_shared<pthread_t>();
-        cpu_set_t* cpuset2 = (cpu_set_t*) malloc(sizeof(cpu_set_t));
-        CPU_ZERO(cpuset2);
-        CPU_SET(i + (num_threads / 2), cpuset2);
-        if (pthread_setaffinity_np(doubleThreads[i].get(), sizeof(cpu_set_t), cpuset2)) {
-            std::printf("Hash affinity setting on thread %d failed.\n", i + (num_threads / 2));
-            exit(1);
-        }
-
         struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
         struct benchmarkArg* arg2 = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
 
@@ -125,13 +108,28 @@ void benchmarkConcurrent() {
         arg2->end = end;
         arg2->func = floatMapper;
 
-        pthread_create(hashThreads[i].get(), NULL, (void* (* __nonnull) (void*)) benchmarkHelper, arg);
-        pthread_create(doubleThreads[i].get(), NULL, (void* (* __nonnull) (void*)) benchmarkHelper, arg);
+        pthread_create(&hashThreads[i], NULL, (void* (* __nonnull) (void*)) benchmarkHelper, arg);
+        pthread_create(&doubleThreads[i], NULL, (void* (* __nonnull) (void*)) benchmarkHelper, arg);
+        cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
+        CPU_ZERO(cpuset);
+        CPU_SET(i, cpuset);
+        if (pthread_setaffinity_np(hashThreads[i], sizeof(cpu_set_t), cpuset)) {
+            std::printf("Hash affinity setting on thread %d failed.\n", i);
+            exit(1);
+        }
+
+        cpu_set_t* cpuset2 = (cpu_set_t*) malloc(sizeof(cpu_set_t));
+        CPU_ZERO(cpuset2);
+        CPU_SET(i + (num_threads / 2), cpuset2);
+        if (pthread_setaffinity_np(doubleThreads[i], sizeof(cpu_set_t), cpuset2)) {
+            std::printf("Hash affinity setting on thread %d failed.\n", i + (num_threads / 2));
+            exit(1);
+        }
     }
 
     for (int i = 0; i < num_threads / 2; i++) {
-        pthread_join(*hashThreads[i].get(), NULL);
-        pthread_join(*doubleThreads[i].get(), NULL);
+        pthread_join(hashThreads[i], NULL);
+        pthread_join(doubleThreads[i], NULL);
     }
 }
 
