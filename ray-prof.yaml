@@ -1,0 +1,42 @@
+# A unique identifier for the head node and workers of this cluster.
+cluster_name: smt_cluster
+
+# The minimum, maximum and initial number of workers nodes to launch in addition
+# to the head node. For this project, we do not need the autoscaling, so we
+# always set these numbers the same.
+min_workers: 0
+initial_workers: 0
+max_workers: 0
+
+provider:
+    type: aws
+    region: us-east-1
+    #availability_zone: us-east-1a
+    cache_stopped_nodes: False
+
+auth:
+    ssh_user: ec2-user
+
+head_node:
+    InstanceType: m5n.metal
+    ImageId: ami-0be13a99cd970f6a9
+
+    #Placement:
+    #    GroupName: terapipe-group
+    #InstanceMarketOptions:
+    #    MarketType: spot
+    #    SpotOptions:
+    #        MaxPrice: "4.0"  # Max Hourly Price
+
+worker_nodes:
+    InstanceType: m5n.metal
+    ImageId: ami-0be13a99cd970f6a9
+
+    #Placement:
+    #    GroupName: terapipe-group
+
+    # Run workers on spot by default. Comment this out to use on-demand.
+    InstanceMarketOptions:
+        MarketType: spot
+        SpotOptions:
+            MaxPrice: "4.0"  # Max Hourly Price

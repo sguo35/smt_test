@@ -5,8 +5,11 @@
 #include <ctime>
 #include <unordered_map>
 #include <thread>
+#include <pthread.h>
+#include <cstdlib>
 
-const uint32_t size = 10000000; // 10M rows
+const uint32_t size = 1000000000; // 1B rows
+const uint32_t num_threads = 96;
 
 std::vector<std::string> strCol;
 std::vector<std::string> strCol2;
@@ -65,38 +68,80 @@ void genData() {
     }
 }
 
+struct benchmarkArg {
+    int start;
+    int end;
+    std::function<void(int, int)> func;
+};
+
+void benchmarkHelper(void* arg) {
+    struct benchmarkArg* castedArg = (struct benchmarkArg*) arg;
+    int start = castedArg->start;
+    int end = castedArg->end;
+
+    castedArg->func(start, end);
+}
+
+void hashHelper(int start, int end) {
+    hashBuild(start, end);
+    hashProbe(start, end);
+}
+
 void benchmarkConcurrent() {
-    std::vector<std::thread> hashThreads(6);
-    std::vector<std::thread> doubleThreads(6);
+    std::vector<std::shared_ptr<pthread_t>> hashThreads(num_threads / 2);
+    std::vector<std::shared_ptr<pthread_t>> doubleThreads(num_threads / 2);
 
-    int segmentSize = size / 6;
+    int segmentSize = size / (num_threads / 2);
 
-    for (int i = 0; i < 6; i++) {
-        hashThreads[i] = std::thread([=] {
-            int start = segmentSize * i;
-            int end = segmentSize * (i + 1);
+    for (int i = 0; i < num_threads / 2; i++) {
+        hashThreads[i] = std::make_shared<pthread_t>();
+        cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
+        CPU_ZERO(cpuset);
+        CPU_SET(i, cpuset);
+        if (pthread_setaffinity_np(hashThreads[i].get(), sizeof(cpu_set_t), cpuset)) {
+            std::printf("Hash affinity setting on thread %d failed.\n", i);
+            exit(1);
+        }
+        doubleThreads[i] = std::make_shared<pthread_t>();
+        cpu_set_t* cpuset2 = (cpu_set_t*) malloc(sizeof(cpu_set_t));
+        CPU_ZERO(cpuset2);
+        CPU_SET(i + (num_threads / 2), cpuset2);
+        if (pthread_setaffinity_np(doubleThreads[i].get(), sizeof(cpu_set_t), cpuset2)) {
+            std::printf("Hash affinity setting on thread %d failed.\n", i + (num_threads / 2));
+            exit(1);
+        }
 
-            hashBuild(start, end);
-            hashProbe(start, end);
-        });
+        struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
+        struct benchmarkArg* arg2 = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
 
-        doubleThreads[i] = std::thread([=] {
-            int start = segmentSize * i;
-            int end = segmentSize * (i + 1);
+        int start = segmentSize * i;
+        int end = segmentSize * (i + 1);
 
-            hashBuild(start, end);
-            hashProbe(start, end);
-        });
+        arg->start = start;
+        arg->end = end;
+        arg->func = hashHelper;
+
+        arg2->start = start;
+        arg2->end = end;
+        arg2->func = floatMapper;
+
+        pthread_create(hashThreads[i].get(), NULL, (void* (* __nonnull) (void*)) benchmarkHelper, arg);
+        pthread_create(doubleThreads[i].get(), NULL, (void* (* __nonnull) (void*)) benchmarkHelper, arg);
+    }
+
+    for (int i = 0; i < num_threads / 2; i++) {
+        pthread_join(*hashThreads[i].get(), NULL);
+        pthread_join(*doubleThreads[i].get(), NULL);
     }
 }
 
 void benchmarkSequential() {
-    std::vector<std::thread> hashThreads(12);
-    std::vector<std::thread> doubleThreads(12);
+    std::vector<std::thread> hashThreads(num_threads);
+    std::vector<std::thread> doubleThreads(num_threads);
 
-    int segmentSize = size / 12;
+    int segmentSize = size / num_threads;
 
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < num_threads; i++) {
         hashThreads[i] = std::thread([=] {
             int start = segmentSize * i;
             int end = segmentSize * (i + 1);
@@ -108,7 +153,7 @@ void benchmarkSequential() {
     for (std::thread& t : hashThreads) {
         t.join();
     }
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < num_threads; i++) {
         doubleThreads[i] = std::thread([=] {
             int start = segmentSize * i;
             int end = segmentSize * (i + 1);
@@ -122,7 +167,41 @@ void benchmarkSequential() {
 }
 
 void benchmarkNaiveConcurrent() {
+    std::vector<std::thread> hashThreads(num_threads);
+    std::vector<std::thread> doubleThreads(num_threads);
 
+    int segmentSize = size / num_threads;
+
+    for (int i = 0; i < num_threads / 2; i++) {
+        hashThreads[i] = std::thread([=] {
+            int start = segmentSize * i;
+            int end = segmentSize * (i + 1);
+
+            hashBuild(start, end);
+            hashProbe(start, end);
+        });
+    }
+    for (int i = 0; i < num_threads / 2; i++) {
+        doubleThreads[i] = std::thread([=] {
+            int start = segmentSize * i;
+            int end = segmentSize * (i + 1);
+
+            floatMapper(start, end);
+        });
+    }
+    for (std::thread& t : hashThreads) {
+        t.join();
+    }
+    for (std::thread& t : doubleThreads) {
+        t.join();
+    }
+}
+
+void printEndBenchmark(std::chrono::steady_clock::time_point startTime, std::string msg) {
+    auto end = std::chrono::high_resolution_clock::now() - startTime;
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end).count();
+
+    std::printf("%s took %lld ms\n", msg, duration);
 }
 
 int main() {
@@ -130,5 +209,24 @@ int main() {
 
     genData();
 
+    hashMap.clear();
+    hashMap.reserve(size);
+    auto start = std::chrono::high_resolution_clock::now();
+    benchmarkNaiveConcurrent();
+    printEndBenchmark(start, "Naive concurrent");
+
+    hashMap.clear();
+    hashMap.reserve(size);
+    start = std::chrono::high_resolution_clock::now();
+    benchmarkSequential();
+    printEndBenchmark(start, "Sequential");
+
+    hashMap.clear();
+    hashMap.reserve(size);
+    start = std::chrono::high_resolution_clock::now();
+    benchmarkConcurrent();
+    printEndBenchmark(start, "Manual scheduled concurrent");
+
+    std::cout << std::endl;
     std::cout << hashMap.load_factor() << " " << doubleResultCol.at(size - 1) << std::endl;
 }
