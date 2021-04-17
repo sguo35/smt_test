@@ -10,7 +10,7 @@
 #include <functional>
 
 const uint32_t size = 100000000; // 100M rows
-const uint32_t floatMult = 1000; // use more floats since they're fast
+const uint32_t floatMult = 100; // use more floats since they're fast
 const uint32_t num_threads = 96;
 
 std::vector<std::string> strCol;
