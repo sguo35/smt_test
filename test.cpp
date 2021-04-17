@@ -151,7 +151,9 @@ void benchmarkSequential() {
         });
     }
     for (std::thread& t : hashThreads) {
-        t.join();
+        if (t.joinable()) {
+            t.join();
+        }
     }
     for (int i = 0; i < num_threads; i++) {
         doubleThreads[i] = std::thread([=] {
@@ -162,7 +164,9 @@ void benchmarkSequential() {
         });
     }
     for (std::thread& t : doubleThreads) {
-        t.join();
+        if (t.joinable()) {
+            t.join();
+        }
     }
 }
 
@@ -190,10 +194,14 @@ void benchmarkNaiveConcurrent() {
         });
     }
     for (std::thread& t : hashThreads) {
-        t.join();
+        if (t.joinable()) {
+            t.join();
+        }
     }
     for (std::thread& t : doubleThreads) {
-        t.join();
+        if (t.joinable()) {
+            t.join();
+        }
     }
 }
 
