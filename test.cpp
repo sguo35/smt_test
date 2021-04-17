@@ -75,7 +75,7 @@ struct benchmarkArg {
     std::function<void(int, int)> func;
 };
 
-void benchmarkHelper(void* arg) {
+void* benchmarkHelper(void* arg) {
     struct benchmarkArg* castedArg = (struct benchmarkArg*) arg;
     int start = castedArg->start;
     int end = castedArg->end;
@@ -109,8 +109,8 @@ void benchmarkConcurrent() {
         arg2->end = end;
         arg2->func = floatMapper;
 
-        pthread_create(&hashThreads[i], NULL, (void* (* __nonnull) (void*)) benchmarkHelper, arg);
-        pthread_create(&doubleThreads[i], NULL, (void* (* __nonnull) (void*)) benchmarkHelper, arg);
+        pthread_create(&hashThreads[i], NULL, benchmarkHelper, arg);
+        pthread_create(&doubleThreads[i], NULL, benchmarkHelper, arg);
         cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
         CPU_ZERO(cpuset);
         CPU_SET(i, cpuset);
