@@ -10,6 +10,7 @@
 #include <functional>
 
 const uint32_t size = 100000000; // 100M rows
+const uint32_t floatMult = 1000; // use more floats since they're fast
 const uint32_t num_threads = 96;
 
 std::vector<std::string> strCol;
@@ -18,7 +19,7 @@ std::vector<double> doubleCol;
 std::vector<double> doubleCol2;
 std::unordered_map<std::string, double> hashMap;
 
-std::vector<double> doubleResultCol(size, 0);
+std::vector<double> doubleResultCol(size * floatMult, 0);
 
 std::string gen_random(const int len) {
     
@@ -36,7 +37,7 @@ std::string gen_random(const int len) {
 }
 
 void floatMapper(int start, int end) {
-    for (int i = start; i < end; i++) {
+    for (int i = start * floatMult; i < end * floatMult; i++) {
         doubleResultCol[i] = doubleCol[i] * 2.5;
     }
 }
@@ -64,8 +65,10 @@ void genData() {
     for (int i = 0; i < size; i++) {
         strCol.push_back(gen_random(4));
         strCol2.push_back(gen_random(4));
-        doubleCol.push_back(rand());
-        doubleCol2.push_back(rand());
+        for (int j = 0; j < floatMult; j++) {
+            doubleCol.push_back(rand());
+            doubleCol2.push_back(rand());
+        }
     }
 }
 
