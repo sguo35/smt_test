@@ -69,10 +69,15 @@ void genData() {
     }
 }
 
+void hashHelper(int start, int end) {
+    hashBuild(start, end);
+    hashProbe(start, end);
+}
+
 struct benchmarkArg {
     int start;
     int end;
-    std::function<void(int, int)> func;
+    bool isFloat;
 };
 
 void* benchmarkHelper(void* arg) {
@@ -80,13 +85,13 @@ void* benchmarkHelper(void* arg) {
     int start = castedArg->start;
     int end = castedArg->end;
 
-    castedArg->func(start, end);
+    if (castedArg->isFloat) {
+        floatMapper(start, end);
+    } else {
+        hashHelper(start, end);
+    }
 }
 
-void hashHelper(int start, int end) {
-    hashBuild(start, end);
-    hashProbe(start, end);
-}
 
 void benchmarkConcurrent() {
     pthread_t hashThreads[num_threads / 2];
@@ -103,11 +108,11 @@ void benchmarkConcurrent() {
 
         arg->start = start;
         arg->end = end;
-        arg->func = hashHelper;
+        arg->isFloat = false;
 
         arg2->start = start;
         arg2->end = end;
-        arg2->func = floatMapper;
+        arg2->isFloat = true;
 
         pthread_create(&hashThreads[i], NULL, benchmarkHelper, arg);
         pthread_create(&doubleThreads[i], NULL, benchmarkHelper, arg2);
