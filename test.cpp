@@ -111,6 +111,7 @@ void benchmarkConcurrent() {
 
         pthread_create(&hashThreads[i], NULL, benchmarkHelper, arg);
         pthread_create(&doubleThreads[i], NULL, benchmarkHelper, arg);
+        
         cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
         CPU_ZERO(cpuset);
         CPU_SET(i, cpuset);
@@ -196,9 +197,9 @@ void benchmarkNaiveConcurrent() {
     }
 }
 
-void printEndBenchmark(std::chrono::steady_clock::time_point startTime, std::string msg) {
-    auto end = std::chrono::high_resolution_clock::now() - startTime;
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end).count();
+void printEndBenchmark(std::chrono::time_point<std::chrono::high_resolution_clock> startTime, std::string msg) {
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime).count();
 
     std::printf("%s took %lld ms\n", msg, duration);
 }
