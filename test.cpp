@@ -110,7 +110,7 @@ void benchmarkConcurrent() {
         arg2->func = floatMapper;
 
         pthread_create(&hashThreads[i], NULL, benchmarkHelper, arg);
-        pthread_create(&doubleThreads[i], NULL, benchmarkHelper, arg);
+        pthread_create(&doubleThreads[i], NULL, benchmarkHelper, arg2);
         
         cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
         CPU_ZERO(cpuset);
@@ -174,7 +174,7 @@ void benchmarkNaiveConcurrent() {
     std::vector<std::thread> hashThreads(num_threads);
     std::vector<std::thread> doubleThreads(num_threads);
 
-    int segmentSize = size / num_threads;
+    int segmentSize = size / (num_threads / 2);
 
     for (int i = 0; i < num_threads / 2; i++) {
         hashThreads[i] = std::thread([=] {
@@ -205,7 +205,7 @@ void benchmarkNaiveConcurrent() {
     }
 }
 
-void printEndBenchmark(std::chrono::time_point<std::chrono::high_resolution_clock> startTime, std::string msg) {
+void printEndBenchmark(std::chrono::time_point<std::chrono::high_resolution_clock> startTime, const char* msg) {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime).count();
 
