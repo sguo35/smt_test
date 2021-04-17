@@ -19,7 +19,7 @@ auth:
 
 head_node:
     InstanceType: m5n.metal
-    ImageId: ami-0be13a99cd970f6a9
+    ImageId: ami-0f98d434680f5d302
 
     #Placement:
     #    GroupName: terapipe-group
@@ -30,7 +30,7 @@ head_node:
 
 worker_nodes:
     InstanceType: m5n.metal
-    ImageId: ami-0be13a99cd970f6a9
+    ImageId: ami-0f98d434680f5d302
 
     #Placement:
     #    GroupName: terapipe-group

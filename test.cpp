@@ -8,10 +8,15 @@
 #include <pthread.h>
 #include <cstdlib>
 #include <functional>
+#include <ittnotify.h>
 
 const uint32_t size = 100000000; // 100M rows
 const uint32_t floatMult = 10; // use more floats since they're fast
 const uint32_t num_threads = 96;
+
+__itt_domain* benchmarkDomain = __itt_domain_create(L"Benchmark Domain");
+__itt_string_handle* handleHashHelper = __itt_string_handle_create("hashHelper");
+__itt_string_handle* handleFloatMapper = __itt_string_handle_create("floatMapper");
 
 std::vector<std::string> strCol;
 std::vector<std::string> strCol2;
@@ -37,11 +42,13 @@ std::string gen_random(const int len) {
 }
 
 void floatMapper(int start, int end) {
+    __itt_task_begin(domain, __itt_null, __itt_null, handleFloatMapper);
 	for (int j = 0; j < floatMult * 20; j++) {
     for (int i = start * floatMult; i < end * floatMult; i++) {
         doubleResultCol[i] = doubleCol[i] * 2.5;
     }
 	}
+    __itt_task_end(domain);
 }
 
 void hashBuild(int start, int end) {
@@ -75,10 +82,10 @@ void genData() {
 }
 
 void hashHelper(int start, int end) {
-	
+	__itt_task_begin(domain, __itt_null, __itt_null, handleHashHelper);
     hashBuild(start, end);
     hashProbe(start, end);
-    
+    __itt_task_end(domain);
 }
 
 struct benchmarkArg {
