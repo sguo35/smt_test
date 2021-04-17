@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <functional>
 
-const uint32_t size = 1000000000; // 1B rows
+const uint32_t size = 100000000; // 100M rows
 const uint32_t num_threads = 96;
 
 std::vector<std::string> strCol;
