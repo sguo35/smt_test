@@ -72,7 +72,7 @@ void genData() {
 struct benchmarkArg {
     int start;
     int end;
-    std::function<void, int, int> func;
+    std::function<void(int, int)> func;
 };
 
 void benchmarkHelper(void* arg) {
