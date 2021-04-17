@@ -151,8 +151,7 @@ void benchmarkSequential() {
             int start = segmentSize * i;
             int end = segmentSize * (i + 1);
 
-            hashBuild(start, end);
-            hashProbe(start, end);
+            hashHelper(start, end);
         });
     }
     for (std::thread& t : hashThreads) {
@@ -186,8 +185,7 @@ void benchmarkNaiveConcurrent() {
             int start = segmentSize * i;
             int end = segmentSize * (i + 1);
 
-            hashBuild(start, end);
-            hashProbe(start, end);
+            hashHelper(start, end);
         });
     }
     for (int i = 0; i < num_threads / 2; i++) {
