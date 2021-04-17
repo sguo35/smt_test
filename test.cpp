@@ -10,7 +10,7 @@
 #include <functional>
 
 const uint32_t size = 100000000; // 100M rows
-const uint32_t floatMult = 100; // use more floats since they're fast
+const uint32_t floatMult = 10; // use more floats since they're fast
 const uint32_t num_threads = 96;
 
 std::vector<std::string> strCol;
@@ -37,9 +37,11 @@ std::string gen_random(const int len) {
 }
 
 void floatMapper(int start, int end) {
+	for (int j = 0; j < floatMult * 20; j++) {
     for (int i = start * floatMult; i < end * floatMult; i++) {
         doubleResultCol[i] = doubleCol[i] * 2.5;
     }
+	}
 }
 
 void hashBuild(int start, int end) {
@@ -73,8 +75,10 @@ void genData() {
 }
 
 void hashHelper(int start, int end) {
+	
     hashBuild(start, end);
     hashProbe(start, end);
+    
 }
 
 struct benchmarkArg {
@@ -178,8 +182,8 @@ void benchmarkSequential() {
 }
 
 void benchmarkNaiveConcurrent() {
-    std::vector<std::thread> hashThreads(num_threads);
-    std::vector<std::thread> doubleThreads(num_threads);
+    std::vector<std::thread> hashThreads(num_threads / 2);
+    std::vector<std::thread> doubleThreads(num_threads / 2);
 
     int segmentSize = size / (num_threads / 2);
 
