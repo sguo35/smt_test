@@ -3,7 +3,7 @@
 #include <vector>
 #include <unistd.h>
 #include <ctime>
-#include <unordered_map>
+#include <tbb/concurrent_unordered_map.h>
 #include <thread>
 #include <pthread.h>
 #include <cstdlib>
@@ -17,7 +17,7 @@ std::vector<std::string> strCol;
 std::vector<std::string> strCol2;
 std::vector<double> doubleCol;
 std::vector<double> doubleCol2;
-std::unordered_map<std::string, double> hashMap;
+tbb::concurrent_unordered_map<std::string, double> hashMap;
 
 std::vector<double> doubleResultCol(size * floatMult, 0);
 
