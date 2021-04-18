@@ -8,15 +8,10 @@
 #include <pthread.h>
 #include <cstdlib>
 #include <functional>
-#include <ittnotify.h>
 
 const uint32_t size = 100000000; // 100M rows
 const uint32_t floatMult = 10; // use more floats since they're fast
 const uint32_t num_threads = 96;
-
-__itt_domain* benchmarkDomain = __itt_domain_create(L"Benchmark Domain");
-__itt_string_handle* handleHashHelper = __itt_string_handle_create("hashHelper");
-__itt_string_handle* handleFloatMapper = __itt_string_handle_create("floatMapper");
 
 std::vector<std::string> strCol;
 std::vector<std::string> strCol2;
@@ -42,13 +37,11 @@ std::string gen_random(const int len) {
 }
 
 void floatMapper(int start, int end) {
-    __itt_task_begin(domain, __itt_null, __itt_null, handleFloatMapper);
 	for (int j = 0; j < floatMult * 20; j++) {
     for (int i = start * floatMult; i < end * floatMult; i++) {
         doubleResultCol[i] = doubleCol[i] * 2.5;
     }
 	}
-    __itt_task_end(domain);
 }
 
 void hashBuild(int start, int end) {
@@ -82,10 +75,8 @@ void genData() {
 }
 
 void hashHelper(int start, int end) {
-	__itt_task_begin(domain, __itt_null, __itt_null, handleHashHelper);
     hashBuild(start, end);
     hashProbe(start, end);
-    __itt_task_end(domain);
 }
 
 struct benchmarkArg {
@@ -108,12 +99,12 @@ void* benchmarkHelper(void* arg) {
 
 
 void benchmarkConcurrent() {
-    pthread_t hashThreads[num_threads / 2];
-    pthread_t doubleThreads[num_threads / 2];
+    pthread_t hashThreads[num_threads / 4];
+    pthread_t doubleThreads[num_threads / 4];
 
-    int segmentSize = size / (num_threads / 2);
+    int segmentSize = size / (num_threads / 4);
 
-    for (int i = 0; i < num_threads / 2; i++) {
+    for (int i = 0; i < num_threads / 4; i++) {
         struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
         struct benchmarkArg* arg2 = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
 
@@ -148,77 +139,125 @@ void benchmarkConcurrent() {
         }
     }
 
-    for (int i = 0; i < num_threads / 2; i++) {
+    for (int i = 0; i < num_threads / 4; i++) {
         pthread_join(hashThreads[i], NULL);
         pthread_join(doubleThreads[i], NULL);
     }
 }
 
 void benchmarkSequential() {
-    std::vector<std::thread> hashThreads(num_threads);
-    std::vector<std::thread> doubleThreads(num_threads);
-
-    int segmentSize = size / num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        hashThreads[i] = std::thread([=] {
-            int start = segmentSize * i;
-            int end = segmentSize * (i + 1);
-
-            hashHelper(start, end);
-        });
-    }
-    for (std::thread& t : hashThreads) {
-        if (t.joinable()) {
-            t.join();
-        }
-    }
-    for (int i = 0; i < num_threads; i++) {
-        doubleThreads[i] = std::thread([=] {
-            int start = segmentSize * i;
-            int end = segmentSize * (i + 1);
-
-            floatMapper(start, end);
-        });
-    }
-    for (std::thread& t : doubleThreads) {
-        if (t.joinable()) {
-            t.join();
-        }
-    }
-}
-
-void benchmarkNaiveConcurrent() {
-    std::vector<std::thread> hashThreads(num_threads / 2);
-    std::vector<std::thread> doubleThreads(num_threads / 2);
+    pthread_t hashThreads[num_threads / 2];
+    pthread_t doubleThreads[num_threads / 2];
 
     int segmentSize = size / (num_threads / 2);
 
     for (int i = 0; i < num_threads / 2; i++) {
-        hashThreads[i] = std::thread([=] {
-            int start = segmentSize * i;
-            int end = segmentSize * (i + 1);
+        struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
 
-            hashHelper(start, end);
-        });
+        int start = segmentSize * i;
+        int end = segmentSize * (i + 1);
+
+        arg->start = start;
+        arg->end = end;
+        arg->isFloat = false;
+
+        pthread_create(&hashThreads[i], NULL, benchmarkHelper, arg);
+        
+        cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
+        CPU_ZERO(cpuset);
+        for (int j = 0; j < num_threads / 4; j++) {
+            CPU_SET(j, cpuset);
+            CPU_SET(j + (num_threads / 2), cpu_set);
+        }
+        if (pthread_setaffinity_np(hashThreads[i], sizeof(cpu_set_t), cpuset)) {
+            std::printf("Affinity setting on thread %d failed.\n", i);
+            exit(1);
+        }
     }
+
     for (int i = 0; i < num_threads / 2; i++) {
-        doubleThreads[i] = std::thread([=] {
-            int start = segmentSize * i;
-            int end = segmentSize * (i + 1);
+        pthread_join(hashThreads[i], NULL);
+    }
 
-            floatMapper(start, end);
-        });
-    }
-    for (std::thread& t : hashThreads) {
-        if (t.joinable()) {
-            t.join();
+    for (int i = 0; i < num_threads / 2; i++) {
+        struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
+
+        int start = segmentSize * i;
+        int end = segmentSize * (i + 1);
+
+        arg->start = start;
+        arg->end = end;
+        arg->isFloat = true;
+
+        pthread_create(&doubleThreads[i], NULL, benchmarkHelper, arg);
+        
+        cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
+        CPU_ZERO(cpuset);
+        for (int j = 0; j < num_threads / 4; j++) {
+            CPU_SET(j, cpuset);
+            CPU_SET(j + (num_threads / 2), cpu_set);
+        }
+        if (pthread_setaffinity_np(doubleThreads[i], sizeof(cpu_set_t), cpuset)) {
+            std::printf("Affinity setting on thread %d failed.\n", i);
+            exit(1);
         }
     }
-    for (std::thread& t : doubleThreads) {
-        if (t.joinable()) {
-            t.join();
+
+    for (int i = 0; i < num_threads / 2; i++) {
+        pthread_join(doubleThreads[i], NULL);
+    }
+}
+
+void benchmarkNaiveConcurrent() {
+    pthread_t hashThreads[num_threads / 4];
+    pthread_t doubleThreads[num_threads / 4];
+
+    int segmentSize = size / (num_threads / 4);
+
+    for (int i = 0; i < num_threads / 4; i++) {
+        struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
+        struct benchmarkArg* arg2 = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
+
+        int start = segmentSize * i;
+        int end = segmentSize * (i + 1);
+
+        arg->start = start;
+        arg->end = end;
+        arg->isFloat = false;
+
+        arg2->start = start;
+        arg2->end = end;
+        arg2->isFloat = true;
+
+        pthread_create(&hashThreads[i], NULL, benchmarkHelper, arg);
+        pthread_create(&doubleThreads[i], NULL, benchmarkHelper, arg2);
+        
+        cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
+        CPU_ZERO(cpuset);
+        for (int j = 0; j < num_threads / 4; j++) {
+            CPU_SET(j, cpuset);
+            CPU_SET(j + (num_threads / 2), cpu_set);
         }
+        if (pthread_setaffinity_np(hashThreads[i], sizeof(cpu_set_t), cpuset)) {
+            std::printf("Hash affinity setting on thread %d failed.\n", i);
+            exit(1);
+        }
+
+        cpu_set_t* cpuset2 = (cpu_set_t*) malloc(sizeof(cpu_set_t));
+        CPU_ZERO(cpuset2);
+        for (int j = 0; j < num_threads / 4; j++) {
+            CPU_SET(j, cpuset);
+            CPU_SET(j + (num_threads / 2), cpu_set);
+        }
+        if (pthread_setaffinity_np(doubleThreads[i], sizeof(cpu_set_t), cpuset2)) {
+            std::printf("Hash affinity setting on thread %d failed.\n", i + (num_threads / 2));
+            exit(1);
+        }
+    }
+
+    for (int i = 0; i < num_threads / 4; i++) {
+        pthread_join(hashThreads[i], NULL);
+        pthread_join(doubleThreads[i], NULL);
     }
 }
 
