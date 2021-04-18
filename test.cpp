@@ -246,8 +246,8 @@ void benchmarkNaiveConcurrent() {
         cpu_set_t* cpuset2 = (cpu_set_t*) malloc(sizeof(cpu_set_t));
         CPU_ZERO(cpuset2);
         for (int j = 0; j < num_threads / 4; j++) {
-            CPU_SET(j, cpuset);
-            CPU_SET(j + (num_threads / 2), cpuset);
+            CPU_SET(j, cpuset2);
+            CPU_SET(j + (num_threads / 2), cpuset2);
         }
         if (pthread_setaffinity_np(doubleThreads[i], sizeof(cpu_set_t), cpuset2)) {
             std::printf("Hash affinity setting on thread %d failed.\n", i + (num_threads / 2));
