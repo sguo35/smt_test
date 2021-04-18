@@ -2,3 +2,7 @@
 *.o
 certificates
 standalone_gui
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+smt_test
