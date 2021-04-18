@@ -167,7 +167,7 @@ void benchmarkSequential() {
         CPU_ZERO(cpuset);
         for (int j = 0; j < num_threads / 4; j++) {
             CPU_SET(j, cpuset);
-            CPU_SET(j + (num_threads / 2), cpu_set);
+            CPU_SET(j + (num_threads / 2), cpuset);
         }
         if (pthread_setaffinity_np(hashThreads[i], sizeof(cpu_set_t), cpuset)) {
             std::printf("Affinity setting on thread %d failed.\n", i);
@@ -195,7 +195,7 @@ void benchmarkSequential() {
         CPU_ZERO(cpuset);
         for (int j = 0; j < num_threads / 4; j++) {
             CPU_SET(j, cpuset);
-            CPU_SET(j + (num_threads / 2), cpu_set);
+            CPU_SET(j + (num_threads / 2), cpuset);
         }
         if (pthread_setaffinity_np(doubleThreads[i], sizeof(cpu_set_t), cpuset)) {
             std::printf("Affinity setting on thread %d failed.\n", i);
@@ -236,7 +236,7 @@ void benchmarkNaiveConcurrent() {
         CPU_ZERO(cpuset);
         for (int j = 0; j < num_threads / 4; j++) {
             CPU_SET(j, cpuset);
-            CPU_SET(j + (num_threads / 2), cpu_set);
+            CPU_SET(j + (num_threads / 2), cpuset);
         }
         if (pthread_setaffinity_np(hashThreads[i], sizeof(cpu_set_t), cpuset)) {
             std::printf("Hash affinity setting on thread %d failed.\n", i);
@@ -247,7 +247,7 @@ void benchmarkNaiveConcurrent() {
         CPU_ZERO(cpuset2);
         for (int j = 0; j < num_threads / 4; j++) {
             CPU_SET(j, cpuset);
-            CPU_SET(j + (num_threads / 2), cpu_set);
+            CPU_SET(j + (num_threads / 2), cpuset);
         }
         if (pthread_setaffinity_np(doubleThreads[i], sizeof(cpu_set_t), cpuset2)) {
             std::printf("Hash affinity setting on thread %d failed.\n", i + (num_threads / 2));
