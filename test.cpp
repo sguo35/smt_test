@@ -9,8 +9,8 @@
 #include <cstdlib>
 #include <functional>
 
-const uint32_t size = 100000000; // 100M rows
-const uint32_t floatMult = 10; // use more floats since they're fast
+const uint32_t size = 100000000;
+const uint32_t floatMult = 17; // use more floats since they're fast
 const uint32_t num_threads = 96;
 
 std::vector<std::string> strCol;
@@ -37,11 +37,13 @@ std::string gen_random(const int len) {
 }
 
 void floatMapper(int start, int end) {
-	for (int j = 0; j < floatMult * 20; j++) {
+	
     for (int i = start * floatMult; i < end * floatMult; i++) {
-        doubleResultCol[i] = doubleCol[i] * 2.5;
+	    for (int j = 0; j < floatMult; j++) {
+        doubleResultCol[i] = doubleCol[i] * doubleCol2[i] + doubleResultCol[i];
+	    }
     }
-	}
+    
 }
 
 void hashBuild(int start, int end) {
@@ -63,10 +65,9 @@ void hashProbe(int start, int end) {
 }
 
 void genData() {
-    hashMap.reserve(size);
     for (int i = 0; i < size; i++) {
-        strCol.push_back(gen_random(4));
-        strCol2.push_back(gen_random(4));
+        strCol.push_back(gen_random(6));
+        strCol2.push_back(gen_random(6));
         for (int j = 0; j < floatMult; j++) {
             doubleCol.push_back(rand());
             doubleCol2.push_back(rand());
@@ -99,12 +100,12 @@ void* benchmarkHelper(void* arg) {
 
 
 void benchmarkConcurrent() {
-    pthread_t hashThreads[num_threads / 4];
-    pthread_t doubleThreads[num_threads / 4];
+    pthread_t hashThreads[num_threads / 8];
+    pthread_t doubleThreads[num_threads / 8];
 
-    int segmentSize = size / (num_threads / 4);
+    int segmentSize = size / (num_threads / 8);
 
-    for (int i = 0; i < num_threads / 4; i++) {
+    for (int i = 0; i < num_threads / 8; i++) {
         struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
         struct benchmarkArg* arg2 = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
 
@@ -139,19 +140,21 @@ void benchmarkConcurrent() {
         }
     }
 
-    for (int i = 0; i < num_threads / 4; i++) {
+    for (int i = 0; i < num_threads / 8; i++) {
         pthread_join(hashThreads[i], NULL);
         pthread_join(doubleThreads[i], NULL);
     }
 }
 
 void benchmarkSequential() {
-    pthread_t hashThreads[num_threads / 2];
-    pthread_t doubleThreads[num_threads / 2];
+    pthread_t hashThreads[num_threads / 4];
+    pthread_t doubleThreads[num_threads / 4];
 
-    int segmentSize = size / (num_threads / 2);
+    int segmentSize = size / (num_threads / 4);
 
-    for (int i = 0; i < num_threads / 2; i++) {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < num_threads / 4; i++) {
         struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
 
         int start = segmentSize * i;
@@ -165,7 +168,7 @@ void benchmarkSequential() {
         
         cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
         CPU_ZERO(cpuset);
-        for (int j = 0; j < num_threads / 4; j++) {
+        for (int j = 0; j < num_threads / 8; j++) {
             CPU_SET(j, cpuset);
             CPU_SET(j + (num_threads / 2), cpuset);
         }
@@ -175,11 +178,17 @@ void benchmarkSequential() {
         }
     }
 
-    for (int i = 0; i < num_threads / 2; i++) {
+    for (int i = 0; i < num_threads / 4; i++) {
         pthread_join(hashThreads[i], NULL);
     }
 
-    for (int i = 0; i < num_threads / 2; i++) {
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::printf("%lld ms\n", duration);
+
+    start = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < num_threads / 4; i++) {
         struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
 
         int start = segmentSize * i;
@@ -193,7 +202,7 @@ void benchmarkSequential() {
         
         cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
         CPU_ZERO(cpuset);
-        for (int j = 0; j < num_threads / 4; j++) {
+        for (int j = 0; j < num_threads / 8; j++) {
             CPU_SET(j, cpuset);
             CPU_SET(j + (num_threads / 2), cpuset);
         }
@@ -203,18 +212,21 @@ void benchmarkSequential() {
         }
     }
 
-    for (int i = 0; i < num_threads / 2; i++) {
+    for (int i = 0; i < num_threads / 4; i++) {
         pthread_join(doubleThreads[i], NULL);
     }
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::printf("%lld ms\n", duration);
 }
 
 void benchmarkNaiveConcurrent() {
-    pthread_t hashThreads[num_threads / 4];
-    pthread_t doubleThreads[num_threads / 4];
+    pthread_t hashThreads[num_threads / 8];
+    pthread_t doubleThreads[num_threads / 8];
 
-    int segmentSize = size / (num_threads / 4);
+    int segmentSize = size / (num_threads / 8);
 
-    for (int i = 0; i < num_threads / 4; i++) {
+    for (int i = 0; i < num_threads / 8; i++) {
         struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
         struct benchmarkArg* arg2 = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
 
@@ -234,7 +246,7 @@ void benchmarkNaiveConcurrent() {
         
         cpu_set_t* cpuset = (cpu_set_t*) malloc(sizeof(cpu_set_t));
         CPU_ZERO(cpuset);
-        for (int j = 0; j < num_threads / 4; j++) {
+        for (int j = 0; j < num_threads / 8; j++) {
             CPU_SET(j, cpuset);
             CPU_SET(j + (num_threads / 2), cpuset);
         }
@@ -245,7 +257,7 @@ void benchmarkNaiveConcurrent() {
 
         cpu_set_t* cpuset2 = (cpu_set_t*) malloc(sizeof(cpu_set_t));
         CPU_ZERO(cpuset2);
-        for (int j = 0; j < num_threads / 4; j++) {
+        for (int j = 0; j < num_threads / 8; j++) {
             CPU_SET(j, cpuset2);
             CPU_SET(j + (num_threads / 2), cpuset2);
         }
@@ -255,7 +267,7 @@ void benchmarkNaiveConcurrent() {
         }
     }
 
-    for (int i = 0; i < num_threads / 4; i++) {
+    for (int i = 0; i < num_threads / 8; i++) {
         pthread_join(hashThreads[i], NULL);
         pthread_join(doubleThreads[i], NULL);
     }
@@ -278,19 +290,16 @@ int main() {
     genData();
 
     hashMap.clear();
-    hashMap.reserve(size);
     auto start = std::chrono::high_resolution_clock::now();
     benchmarkNaiveConcurrent();
     printEndBenchmark(start, "Naive concurrent");
 
     hashMap.clear();
-    hashMap.reserve(size);
     start = std::chrono::high_resolution_clock::now();
     benchmarkSequential();
     printEndBenchmark(start, "Sequential");
 
     hashMap.clear();
-    hashMap.reserve(size);
     start = std::chrono::high_resolution_clock::now();
     benchmarkConcurrent();
     printEndBenchmark(start, "Manual scheduled concurrent");
