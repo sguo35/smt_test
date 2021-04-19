@@ -9,8 +9,8 @@
 #include <cstdlib>
 #include <functional>
 
-const uint32_t size = 100000000;
-const uint32_t floatMult = 17; // use more floats since they're fast
+const uint32_t size = 1000000;
+const uint32_t floatMult = 100; // use more floats since they're fast
 const uint32_t num_threads = 96;
 
 std::vector<std::string> strCol;
@@ -66,8 +66,8 @@ void hashProbe(int start, int end) {
 
 void genData() {
     for (int i = 0; i < size; i++) {
-        strCol.push_back(gen_random(6));
-        strCol2.push_back(gen_random(6));
+        strCol.push_back(gen_random(1536));
+        strCol2.push_back(gen_random(1536));
         for (int j = 0; j < floatMult; j++) {
             doubleCol.push_back(rand());
             doubleCol2.push_back(rand());
