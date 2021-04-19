@@ -66,8 +66,8 @@ void hashProbe(int start, int end) {
 
 void genData() {
     for (int i = 0; i < size; i++) {
-        strCol.push_back(gen_random(1536));
-        strCol2.push_back(gen_random(1536));
+        strCol.push_back(gen_random(1024));
+        strCol2.push_back(gen_random(1024));
         for (int j = 0; j < floatMult; j++) {
             doubleCol.push_back(rand());
             doubleCol2.push_back(rand());
@@ -152,7 +152,7 @@ void benchmarkSequential() {
 
     int segmentSize = size / (num_threads / 4);
 
-    auto start = std::chrono::high_resolution_clock::now();
+    //auto start = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < num_threads / 4; i++) {
         struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
@@ -182,11 +182,11 @@ void benchmarkSequential() {
         pthread_join(hashThreads[i], NULL);
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    std::printf("%lld ms\n", duration);
+    //auto end = std::chrono::high_resolution_clock::now();
+    //auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    //std::printf("%lld ms\n", duration);
 
-    start = std::chrono::high_resolution_clock::now();
+    //start = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < num_threads / 4; i++) {
         struct benchmarkArg* arg = (struct benchmarkArg*) malloc(sizeof(struct benchmarkArg));
@@ -215,9 +215,9 @@ void benchmarkSequential() {
     for (int i = 0; i < num_threads / 4; i++) {
         pthread_join(doubleThreads[i], NULL);
     }
-    end = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    std::printf("%lld ms\n", duration);
+    //end = std::chrono::high_resolution_clock::now();
+    //duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    //std::printf("%lld ms\n", duration);
 }
 
 void benchmarkNaiveConcurrent() {
